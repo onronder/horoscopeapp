@@ -1,0 +1,7 @@
+{
+    "auth": {
+      "noToken": "No token provided.",
+      "userNotFound": "User not found.",
+      "invalidToken": "Invalid token."
+    }
+  }
