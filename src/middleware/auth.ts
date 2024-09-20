@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User, { UserDocument } from '../models/User';
 import logger from '../utils/logger';
 import { Document, Types } from 'mongoose';
+import i18n from '../i18n'; // Import i18n
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
@@ -15,14 +16,14 @@ export const auth = async (req: AuthRequest, res: Response, next: NextFunction) 
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ message: 'No authentication token, access denied' });
+      return res.status(401).json({ message: i18n.t('auth.noToken') }); // Use i18n for the message
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
     const user = await User.findById(decoded.id).exec();
 
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ message: i18n.t('auth.userNotFound') }); // Use i18n for the message
     }
 
     // Explicitly type user as UserDocument
@@ -36,7 +37,7 @@ export const auth = async (req: AuthRequest, res: Response, next: NextFunction) 
     next();
   } catch (error) {
     logger.error('Authentication error:', error);
-    res.status(401).json({ message: 'Token is invalid' });
+    res.status(401).json({ message: i18n.t('auth.invalidToken') }); // Use i18n for the message
   }
 };
 

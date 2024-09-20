@@ -8,10 +8,13 @@ import { errorHandler } from './middleware/errorHandler';
 import rateLimit from 'express-rate-limit';
 import userRoutes from './routes/userRoutes';
 import logger from './utils/logger';
+import i18n from './i18n';
+import i18nextMiddleware from 'i18next-http-middleware';
 
 dotenv.config();
 
 const app = express();
+app.use(i18nextMiddleware.handle(i18n));
 const PORT = process.env.PORT || 3000;
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
