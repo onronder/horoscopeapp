@@ -12,121 +12,115 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDailyMotivationalQuote = exports.getMonthlyHoroscope = exports.getWeeklyHoroscope = exports.getDailyHoroscope = void 0;
+exports.getMonthlyHoroscope = exports.getWeeklyHoroscope = exports.getDailyHoroscope = void 0;
 const User_1 = __importDefault(require("../models/User"));
+const Horoscope_1 = __importDefault(require("../models/Horoscope"));
 const claudeService_1 = require("../services/claudeService");
-const astrology_1 = require("../utils/astrology");
-const cacheService_1 = require("../services/cacheService");
 const logger_1 = __importDefault(require("../utils/logger"));
-const getHoroscope = (userId, type) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = yield User_1.default.findById(userId);
-    if (!user) {
-        throw new Error('User not found');
-    }
-    const zodiacSign = (0, astrology_1.getZodiacSign)(user.birthdate);
-    const today = new Date();
-    let date;
-    let cacheKey;
-    switch (type) {
-        case 'daily':
-            date = today.toISOString().split('T')[0];
-            cacheKey = `horoscope:daily:${zodiacSign}:${date}`;
-            break;
-        case 'weekly':
-            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-            date = startOfWeek.toISOString().split('T')[0];
-            cacheKey = `horoscope:weekly:${zodiacSign}:${date}`;
-            break;
-        case 'monthly':
-            date = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-01`;
-            cacheKey = `horoscope:monthly:${zodiacSign}:${date}`;
-            break;
-        default:
-            throw new Error('Invalid horoscope type');
-    }
-    let horoscope = (0, cacheService_1.getCachedHoroscope)(cacheKey);
-    if (!horoscope) {
-        logger_1.default.info(`Generating new ${type} horoscope for ${zodiacSign} on ${date}`);
-        horoscope = yield (0, claudeService_1.generateHoroscope)(zodiacSign, date, type);
-        (0, cacheService_1.setCachedHoroscope)(cacheKey, horoscope);
-    }
-    else {
-        logger_1.default.info(`Retrieved cached ${type} horoscope for ${zodiacSign} on ${date}`);
-    }
-    return { zodiacSign, date, horoscope };
-});
 const getDailyHoroscope = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' });
+        const user = yield User_1.default.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
-        const result = yield getHoroscope(userId, 'daily');
-        res.json(result);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let horoscope = yield Horoscope_1.default.findOne({
+            tenantId: req.tenantId,
+            zodiacSign: user.zodiacSign,
+            date: today,
+            type: 'daily'
+        });
+        if (!horoscope) {
+            const content = yield (0, claudeService_1.generateHoroscope)(user.zodiacSign, 'daily');
+            horoscope = new Horoscope_1.default({
+                tenantId: req.tenantId,
+                zodiacSign: user.zodiacSign,
+                date: today,
+                type: 'daily',
+                content
+            });
+            yield horoscope.save();
+        }
+        res.json({ zodiacSign: user.zodiacSign, date: today, horoscope: horoscope.content });
     }
     catch (error) {
-        logger_1.default.error('Error fetching daily horoscope:', error);
-        res.status(500).json({ message: 'Error generating daily horoscope' });
+        logger_1.default.error('Error generating daily horoscope:', error);
+        res.status(500).json({ message: 'Error generating horoscope' });
     }
 });
 exports.getDailyHoroscope = getDailyHoroscope;
 const getWeeklyHoroscope = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' });
+        const user = yield User_1.default.findOne({ _id: req.userId, tenantId: req.tenantId });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
-        const result = yield getHoroscope(userId, 'weekly');
-        res.json(result);
+        if (user.subscriptionLevel === 'free') {
+            return res.status(403).json({ message: 'Upgrade to access weekly horoscopes' });
+        }
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        let horoscope = yield Horoscope_1.default.findOne({
+            tenantId: req.tenantId,
+            zodiacSign: user.zodiacSign,
+            date: startOfWeek,
+            type: 'weekly'
+        });
+        if (!horoscope) {
+            const content = yield (0, claudeService_1.generateHoroscope)(user.zodiacSign, 'weekly');
+            horoscope = new Horoscope_1.default({
+                tenantId: req.tenantId,
+                zodiacSign: user.zodiacSign,
+                date: startOfWeek,
+                type: 'weekly',
+                content
+            });
+            yield horoscope.save();
+        }
+        res.json({ zodiacSign: user.zodiacSign, date: startOfWeek, horoscope: horoscope.content });
     }
     catch (error) {
-        logger_1.default.error('Error fetching weekly horoscope:', error);
-        res.status(500).json({ message: 'Error generating weekly horoscope' });
+        logger_1.default.error('Error generating weekly horoscope:', error);
+        res.status(500).json({ message: 'Error generating horoscope' });
     }
 });
 exports.getWeeklyHoroscope = getWeeklyHoroscope;
 const getMonthlyHoroscope = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-        const result = yield getHoroscope(userId, 'monthly');
-        res.json(result);
-    }
-    catch (error) {
-        logger_1.default.error('Error fetching monthly horoscope:', error);
-        res.status(500).json({ message: 'Error generating monthly horoscope' });
-    }
-});
-exports.getMonthlyHoroscope = getMonthlyHoroscope;
-const getDailyMotivationalQuote = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-        const user = yield User_1.default.findById(userId);
+        const user = yield User_1.default.findOne({ _id: req.userId, tenantId: req.tenantId });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const zodiacSign = (0, astrology_1.getZodiacSign)(user.birthdate);
-        const today = new Date().toISOString().split('T')[0];
-        const cacheKey = `quote:${zodiacSign}:${today}`;
-        let quote = (0, cacheService_1.getCachedHoroscope)(cacheKey);
-        if (!quote) {
-            logger_1.default.info(`Generating new motivational quote for ${zodiacSign} on ${today}`);
-            quote = yield (0, claudeService_1.generateMotivationalQuote)(zodiacSign);
-            (0, cacheService_1.setCachedHoroscope)(cacheKey, quote);
+        if (user.subscriptionLevel !== 'pro') {
+            return res.status(403).json({ message: 'Upgrade to pro to access monthly horoscopes' });
         }
-        else {
-            logger_1.default.info(`Retrieved cached motivational quote for ${zodiacSign} on ${today}`);
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        let horoscope = yield Horoscope_1.default.findOne({
+            tenantId: req.tenantId,
+            zodiacSign: user.zodiacSign,
+            date: startOfMonth,
+            type: 'monthly'
+        });
+        if (!horoscope) {
+            const content = yield (0, claudeService_1.generateHoroscope)(user.zodiacSign, 'monthly');
+            horoscope = new Horoscope_1.default({
+                tenantId: req.tenantId,
+                zodiacSign: user.zodiacSign,
+                date: startOfMonth,
+                type: 'monthly',
+                content
+            });
+            yield horoscope.save();
         }
-        res.json({ zodiacSign, date: today, quote });
+        res.json({ zodiacSign: user.zodiacSign, date: startOfMonth, horoscope: horoscope.content });
     }
     catch (error) {
-        logger_1.default.error('Error fetching motivational quote:', error);
-        res.status(500).json({ message: 'Error generating motivational quote' });
+        logger_1.default.error('Error generating monthly horoscope:', error);
+        res.status(500).json({ message: 'Error generating horoscope' });
     }
 });
-exports.getDailyMotivationalQuote = getDailyMotivationalQuote;
+exports.getMonthlyHoroscope = getMonthlyHoroscope;

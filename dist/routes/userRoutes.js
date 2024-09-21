@@ -9,4 +9,10 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 router.get('/profile', auth_1.auth, userController_1.getUserProfile);
 router.put('/profile', auth_1.auth, userController_1.updateUserProfile);
+router.get('/', (req, res) => {
+    res.status(200).json({ message: 'Get all users' });
+});
+router.get('/:id', (req, res) => {
+    res.status(200).json({ message: 'Get user by ID' });
+});
 exports.default = router;

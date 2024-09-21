@@ -1,7 +1,90 @@
 {
-    "auth": {
-      "noToken": "No token provided.",
-      "userNotFound": "User not found.",
-      "invalidToken": "Invalid token."
-    }
+  "auth": {
+    "signUp": "Sign Up",
+    "logIn": "Log In",
+    "forgotPassword": "Forgot Password",
+    "resetPassword": "Reset Password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "birthday": "Birthday",
+    "birthTime": "Birth Time",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "logout": "Logout",
+    "noToken": "No token provided.",
+    "userNotFound": "User not found.",
+    "invalidToken": "Invalid token.",
+    "invalidCredentials": "Invalid credentials.",
+    "emailAlreadyExists": "Email already exists.",
+    "passwordResetLinkSent": "Password reset link sent.",
+    "invalidOrExpiredToken": "Invalid or expired token.",
+    "accountCreatedSuccessfully": "Account created successfully.",
+    "verifyYourEmail": "Verify Your Email",
+    "emailVerifiedSuccessfully": "Email verified successfully."
+  },
+  "horoscope": {
+    "dailyHoroscope": "Daily Horoscope",
+    "weeklyHoroscope": "Weekly Horoscope",
+    "monthlyHoroscope": "Monthly Horoscope",
+    "love": "Love",
+    "career": "Career",
+    "personalGrowth": "Personal Growth",
+    "yourDailyHoroscopeIsReady": "Your Daily Horoscope is Ready!",
+    "loading": "Loading..."
+  },
+  "zodiacSigns": {
+    "aries": "Aries",
+    "taurus": "Taurus",
+    "gemini": "Gemini",
+    "cancer": "Cancer",
+    "leo": "Leo",
+    "virgo": "Virgo",
+    "libra": "Libra",
+    "scorpio": "Scorpio",
+    "sagittarius": "Sagittarius",
+    "capricorn": "Capricorn",
+    "aquarius": "Aquarius",
+    "pisces": "Pisces"
+  },
+  "subscription": {
+    "subscription": "Subscription",
+    "upgrade": "Upgrade",
+    "free": "Free",
+    "premium": "Premium",
+    "pro": "Pro",
+    "payment": "Payment",
+    "subscriptionExpired": "Subscription Expired",
+    "renewSubscription": "Renew Subscription",
+    "subscriptionUpdatedSuccessfully": "Subscription updated successfully.",
+    "upgradeToAccessThisFeature": "Upgrade to access this feature."
+  },
+  "profile": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "saveChanges": "Save Changes",
+    "deleteAccount": "Delete Account"
+  },
+  "notifications": {
+    "notifications": "Notifications",
+    "enablePushNotifications": "Enable Push Notifications",
+    "disablePushNotifications": "Disable Push Notifications"
+  },
+  "errors": {
+    "error": "Error",
+    "success": "Success",
+    "paymentFailed": "Payment failed.",
+    "networkError": "Network error.",
+    "pleaseTryAgainLater": "Please try again later."
+  },
+  "general": {
+    "welcomeToYourHoroscopeApp": "Welcome to Your Horoscope App",
+    "contactSupport": "Contact Support",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy",
+    "aboutUs": "About Us",
+    "faq": "FAQ",
+    "rateTheApp": "Rate the App",
+    "shareWithFriends": "Share with Friends"
   }
+}

@@ -12,35 +12,37 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.verifyEmail = exports.login = exports.register = void 0;
+exports.login = exports.resetPassword = exports.forgotPassword = exports.verifyEmail = exports.register = void 0;
+const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto"));
 const User_1 = __importDefault(require("../models/User"));
 const emailService_1 = require("../services/emailService");
 const logger_1 = __importDefault(require("../utils/logger"));
+const uuid_1 = require("uuid");
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
-const JWT_EXPIRES_IN = '1d';
-const generateToken = (user) => {
-    return jsonwebtoken_1.default.sign({ id: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-};
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password, birthdate, birthTime } = req.body;
-        const existingUser = yield User_1.default.findOne({ email });
+        const tenantId = req.header('X-Tenant-ID') || 'default';
+        logger_1.default.info(`Registration attempt for email: ${email}, tenant: ${tenantId}`);
+        const existingUser = yield User_1.default.findOne({ email, tenantId });
         if (existingUser) {
             return res.status(400).json({ message: 'User already exists' });
         }
-        const verificationToken = crypto_1.default.randomBytes(20).toString('hex');
-        const user = new User_1.default({
+        const hashedPassword = yield bcrypt_1.default.hash(password, 10);
+        const verificationToken = (0, uuid_1.v4)();
+        const newUser = new User_1.default({
             email,
-            password,
+            password: hashedPassword,
             birthdate,
             birthTime,
+            tenantId,
             verificationToken
         });
-        yield user.save();
-        yield (0, emailService_1.sendVerificationEmail)(user.email, verificationToken);
-        res.status(201).json({ message: 'User registered successfully. Please check your email to verify your account.' });
+        yield newUser.save();
+        yield (0, emailService_1.sendVerificationEmail)(email, verificationToken);
+        logger_1.default.info(`User registered successfully: ${email}, tenant: ${tenantId}`);
+        res.status(201).json({ message: 'User registered successfully. Please check your email for verification.' });
     }
     catch (error) {
         logger_1.default.error('Registration error:', error);
@@ -48,40 +50,18 @@ const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.register = register;
-const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { email, password } = req.body;
-        const user = yield User_1.default.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-        if (!user.isVerified) {
-            return res.status(400).json({ message: 'Please verify your email before logging in' });
-        }
-        const isMatch = yield user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-        const token = generateToken(user);
-        res.json({ token });
-    }
-    catch (error) {
-        logger_1.default.error('Login error:', error);
-        res.status(500).json({ message: 'Error logging in' });
-    }
-});
-exports.login = login;
 const verifyEmail = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { token } = req.params;
         const user = yield User_1.default.findOne({ verificationToken: token });
         if (!user) {
-            return res.status(400).json({ message: 'Invalid or expired verification token' });
+            return res.status(400).json({ message: 'Invalid verification token' });
         }
         user.isVerified = true;
         user.verificationToken = null;
         yield user.save();
-        res.json({ message: 'Email verified successfully. You can now log in.' });
+        logger_1.default.info(`Email verified for user: ${user.email}`);
+        res.json({ message: 'Email verified successfully' });
     }
     catch (error) {
         logger_1.default.error('Email verification error:', error);
@@ -92,15 +72,17 @@ exports.verifyEmail = verifyEmail;
 const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email } = req.body;
-        const user = yield User_1.default.findOne({ email });
+        const tenantId = req.header('X-Tenant-ID') || 'default';
+        const user = yield User_1.default.findOne({ email, tenantId });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const resetToken = crypto_1.default.randomBytes(20).toString('hex');
+        const resetToken = Math.random().toString(36).substring(2, 15);
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
         yield user.save();
-        yield (0, emailService_1.sendPasswordResetEmail)(user.email, resetToken);
+        yield (0, emailService_1.sendPasswordResetEmail)(email, resetToken);
+        logger_1.default.info(`Password reset requested for user: ${email}, tenant: ${tenantId}`);
         res.json({ message: 'Password reset email sent' });
     }
     catch (error) {
@@ -111,8 +93,7 @@ const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
 exports.forgotPassword = forgotPassword;
 const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { token } = req.params;
-        const { password } = req.body;
+        const { token, newPassword } = req.body;
         const user = yield User_1.default.findOne({
             resetPasswordToken: token,
             resetPasswordExpires: { $gt: Date.now() }
@@ -120,11 +101,12 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!user) {
             return res.status(400).json({ message: 'Invalid or expired reset token' });
         }
-        user.password = password;
+        user.password = yield bcrypt_1.default.hash(newPassword, 10);
         user.resetPasswordToken = null;
         user.resetPasswordExpires = null;
         yield user.save();
-        res.json({ message: 'Password reset successful' });
+        logger_1.default.info(`Password reset successfully for user: ${user.email}`);
+        res.json({ message: 'Password reset successfully' });
     }
     catch (error) {
         logger_1.default.error('Reset password error:', error);
@@ -132,3 +114,39 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.resetPassword = resetPassword;
+const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        console.log('Login request body:', req.body);
+        console.log('Tenant ID:', req.header('X-Tenant-ID'));
+        const { email, password } = req.body;
+        const tenantId = req.header('X-Tenant-ID') || 'default';
+        if (!email || !password) {
+            console.log('Email or password is missing');
+            return res.status(400).json({ message: 'Email and password are required' });
+        }
+        const user = yield User_1.default.findOne({ email, tenantId });
+        if (!user) {
+            console.log('User not found');
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+        console.log('User found:', user);
+        if (!user.isVerified) {
+            console.log('User is not verified');
+            return res.status(400).json({ message: 'Please verify your email before logging in' });
+        }
+        const isMatch = yield bcrypt_1.default.compare(password, user.password);
+        if (!isMatch) {
+            console.log('Password does not match');
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+        const token = jsonwebtoken_1.default.sign({ userId: user._id, tenantId }, JWT_SECRET, { expiresIn: '1h' });
+        console.log('Login successful');
+        res.json({ token, userId: user._id });
+    }
+    catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Error logging in' });
+    }
+});
+exports.login = login;
+// ... other controller functions (login, etc.) remain the same

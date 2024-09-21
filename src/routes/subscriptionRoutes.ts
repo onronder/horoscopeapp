@@ -1,11 +1,10 @@
 import express from 'express';
-import { auth } from '../middleware/auth';
 import { getSubscriptionStatus, upgradeSubscription } from '../controllers/subscriptionController';
-import { upgradeSubscriptionValidators } from '../middleware/subscriptionValidators';
+import { auth } from '../middleware/auth';
 
 const router = express.Router();
 
 router.get('/status', auth, getSubscriptionStatus);
-router.post('/upgrade', auth, upgradeSubscriptionValidators, upgradeSubscription);
+router.post('/upgrade', auth, upgradeSubscription);
 
 export default router;

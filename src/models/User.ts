@@ -1,45 +1,46 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import bcrypt from 'bcrypt';
+import mongoose, { Schema, Document } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-export interface IUser {
+export interface IUser extends Document {
+  subscriptionLevel: string;
+  subscriptionEndDate: Date;
+  appleSubscriptionId: string;
+  googleSubscriptionId: string;
   email: string;
   password: string;
-  birthdate: Date;
-  birthTime: string;
-  subscriptionLevel: 'free' | 'premium' | 'pro';
-  subscriptionEndDate: Date;
-  isVerified: boolean;
-  verificationToken: string | null;
-  resetPasswordToken: string | null;
-  resetPasswordExpires: Date | null;
-}
-
-export interface UserDocument extends IUser, Document {
+  tenantId: string;
+  zodiacSign: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const UserSchema: Schema = new Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  birthdate: { type: Date, required: true },
-  birthTime: { type: String, required: true },
-  subscriptionLevel: { type: String, enum: ['free', 'premium', 'pro'], default: 'free' },
-  subscriptionEndDate: { type: Date },
-  isVerified: { type: Boolean, default: false },
-  verificationToken: { type: String },
-  resetPasswordToken: { type: String },
-  resetPasswordExpires: { type: Date }
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    lowercase: true, 
+    trim: true 
+  },
+  password: { 
+    type: String, 
+    required: true 
+  },
+  tenantId: { 
+    type: String, 
+    required: true 
+  },
+  // ... other fields ...
 });
 
-UserSchema.pre<UserDocument>('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+UserSchema.pre<IUser>('save', async function (next) {
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
   next();
 });
 
-UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export default mongoose.model<UserDocument>('User', UserSchema);
+export default mongoose.model<IUser>('User', UserSchema);
