@@ -1,42 +1,106 @@
-import express from 'express';
+import express, { Router } from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+
+// Import routes
 import authRoutes from './routes/authRoutes';
-import horoscopeRoutes from './routes/horoscopeRoutes';
-import subscriptionRoutes from './routes/subscriptionRoutes';
-import { errorHandler } from './middleware/errorHandler';
-import rateLimit from 'express-rate-limit';
 import userRoutes from './routes/userRoutes';
-import logger from './utils/logger';
-import i18n from './i18n';
-import i18nextMiddleware from 'i18next-http-middleware';
+import horoscopeRoutes from './routes/horoscopeRoutes';
+import tenantRoutes from './routes/tenantRoutes';
+import subscriptionRoutes from './routes/subscriptionRoutes';
+import testRoutes from './routes/testRoutes';
+// Add this line
+// Import middleware
+import { errorHandler } from './middleware/errorHandler';
+import { notFound } from './middleware/notFound';
+// Remove or add the following line if you have created the apiLogger middleware
+//import { apiLogger } from './middleware/apiLogger';
 
 dotenv.config();
 
 const app = express();
-app.use(i18nextMiddleware.handle(i18n));
-const PORT = process.env.PORT || 3000;
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(helmet());
+app.use(morgan('dev'));
+// Remove or add the following line if you have created the apiLogger middleware
+//app.use(apiLogger);
+
+// Route logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
 });
 
-app.use(express.json());
+// Connect to MongoDB
+const MONGODB_URI = process.env.MONGODB_URI;
 
-mongoose.connect(process.env.MONGODB_URI as string)
-  .then(() => logger.info('Connected to MongoDB'))
-  .catch((error) => logger.error('MongoDB connection error:', error));
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not defined in the environment variables.');
+  process.exit(1);
+}
 
-app.use('/auth', authRoutes);
-app.use('/horoscope', horoscopeRoutes);
-app.use('/subscription', subscriptionRoutes);
-app.use(errorHandler);
-app.use(limiter);
-app.use('/user', userRoutes);
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  });
+
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'Welcome to the Horoscope API' });
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/horoscopes', horoscopeRoutes);
+app.use('/api/tenants', tenantRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/test', testRoutes);  // Add this line
+
+// Database connection test route
+const testDbRouter = Router();
+testDbRouter.get('/test-db', (req, res) => {
+  if (mongoose.connection.readyState === 1) {
+    res.status(200).json({ message: 'Database connected successfully' });
+  } else {
+    res.status(500).json({ message: 'Database connection failed' });
+  }
+});
+app.use('/api', testDbRouter);
+
+// Environment variables test route
+app.get('/api/test-env', (req, res) => {
+  res.json({
+    mongodbUri: process.env.MONGODB_URI ? 'Set' : 'Not set',
+    jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not set',
+    claudeApiKey: process.env.CLAUDE_API_KEY ? 'Set' : 'Not set',
+    port: process.env.PORT,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
+
+// Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
+// Error handling middleware
+app.use(notFound);
+app.use(errorHandler);
+
+// Start server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+export default app;

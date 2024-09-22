@@ -1,13 +1,14 @@
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import User from '../models/User';
+import { AuthRequest } from '../middleware/auth';
+import User, { IUser } from '../models/User';
 import logger from '../utils/logger';
 import { processPayment } from '../services/paymentService'; // We'll create this later
+import { Response } from 'express';
+import { validationResult } from 'express-validator';
 
-export const getSubscriptionStatus = async (req: Request, res: Response) => {
+export const getSubscriptionStatus = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
-    const user = await User.findById(userId);
+    const user = await User.findById(userId) as IUser;
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -23,7 +24,7 @@ export const getSubscriptionStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const upgradeSubscription = async (req: Request, res: Response) => {
+export const upgradeSubscription = async (req: AuthRequest, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -33,7 +34,7 @@ export const upgradeSubscription = async (req: Request, res: Response) => {
     const userId = req.userId;
     const { newLevel, paymentToken } = req.body;
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId) as IUser;
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

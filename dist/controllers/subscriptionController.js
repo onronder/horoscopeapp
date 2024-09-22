@@ -13,10 +13,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.upgradeSubscription = exports.getSubscriptionStatus = void 0;
-const express_validator_1 = require("express-validator");
 const User_1 = __importDefault(require("../models/User"));
 const logger_1 = __importDefault(require("../utils/logger"));
 const paymentService_1 = require("../services/paymentService"); // We'll create this later
+const express_validator_1 = require("express-validator");
 const getSubscriptionStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const userId = req.userId;

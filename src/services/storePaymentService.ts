@@ -1,7 +1,7 @@
 // services/storePaymentService.ts
 
 import axios from 'axios';
-import { IUser } from '../models/User';
+import User, { IUser } from '../models/User';
 import logger from '../utils/logger';
 
 interface VerificationResult {

@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendPasswordResetEmail = exports.sendVerificationEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const logger_1 = __importDefault(require("../utils/logger"));
 const transporter = nodemailer_1.default.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -24,46 +23,11 @@ const transporter = nodemailer_1.default.createTransport({
         pass: process.env.EMAIL_PASS,
     },
 });
-const sendVerificationEmail = (to, token) => __awaiter(void 0, void 0, void 0, function* () {
-    const verificationUrl = `${process.env.APP_URL}/verify-email/${token}`;
-    const mailOptions = {
-        from: process.env.EMAIL_FROM,
-        to: to,
-        subject: 'Verify Your Email',
-        html: `
-      <p>Please click the link below to verify your email address:</p>
-      <a href="${verificationUrl}">${verificationUrl}</a>
-    `,
-    };
-    try {
-        yield transporter.sendMail(mailOptions);
-        logger_1.default.info(`Verification email sent to ${to}`);
-    }
-    catch (error) {
-        logger_1.default.error('Error sending verification email:', error);
-        throw new Error('Failed to send verification email');
-    }
+const sendVerificationEmail = (email, token) => __awaiter(void 0, void 0, void 0, function* () {
+    // Implement email sending logic here
 });
 exports.sendVerificationEmail = sendVerificationEmail;
-const sendPasswordResetEmail = (to, token) => __awaiter(void 0, void 0, void 0, function* () {
-    const resetUrl = `${process.env.APP_URL}/reset-password/${token}`;
-    const mailOptions = {
-        from: process.env.EMAIL_FROM,
-        to: to,
-        subject: 'Reset Your Password',
-        html: `
-      <p>You requested a password reset. Please click the link below to reset your password:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>If you didn't request this, please ignore this email.</p>
-    `,
-    };
-    try {
-        yield transporter.sendMail(mailOptions);
-        logger_1.default.info(`Password reset email sent to ${to}`);
-    }
-    catch (error) {
-        logger_1.default.error('Error sending password reset email:', error);
-        throw new Error('Failed to send password reset email');
-    }
+const sendPasswordResetEmail = (email, token) => __awaiter(void 0, void 0, void 0, function* () {
+    // Implement email sending logic here
 });
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
