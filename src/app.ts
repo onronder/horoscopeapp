@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -11,6 +11,8 @@ import userRoutes from './routes/userRoutes';
 import horoscopeRoutes from './routes/horoscopeRoutes';
 import tenantRoutes from './routes/tenantRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
+import testRoutes from './routes/testRoutes';
+// Add this line
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
@@ -62,7 +64,29 @@ app.use('/api/users', userRoutes);
 app.use('/api/horoscopes', horoscopeRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/test', testRoutes);  // Add this line
 
+// Database connection test route
+const testDbRouter = Router();
+testDbRouter.get('/test-db', (req, res) => {
+  if (mongoose.connection.readyState === 1) {
+    res.status(200).json({ message: 'Database connected successfully' });
+  } else {
+    res.status(500).json({ message: 'Database connection failed' });
+  }
+});
+app.use('/api', testDbRouter);
+
+// Environment variables test route
+app.get('/api/test-env', (req, res) => {
+  res.json({
+    mongodbUri: process.env.MONGODB_URI ? 'Set' : 'Not set',
+    jwtSecret: process.env.JWT_SECRET ? 'Set' : 'Not set',
+    claudeApiKey: process.env.CLAUDE_API_KEY ? 'Set' : 'Not set',
+    port: process.env.PORT,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
 
 // Health check route
 app.get('/health', (req, res) => {

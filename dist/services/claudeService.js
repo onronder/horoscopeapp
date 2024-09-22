@@ -19,7 +19,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const logger_1 = __importDefault(require("../utils/logger"));
 const usageTracker_1 = require("../utils/usageTracker");
 dotenv_1.default.config();
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/completions';
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 const MAX_RETRIES = 3;
 function callClaudeWithRetry(prompt_1) {
@@ -64,17 +64,23 @@ function callClaudeWithRetry(prompt_1) {
 }
 function generateHoroscope(zodiacSign, type) {
     return __awaiter(this, void 0, void 0, function* () {
-        const prompt = `Generate a ${type} horoscope for ${zodiacSign}. 
-  The horoscope should be positive, inspirational, and around ${type === 'daily' ? '100' : type === 'weekly' ? '200' : '300'} words long. 
-  Include advice for love, career, and personal growth.`;
         try {
-            const horoscope = yield callClaudeWithRetry(prompt);
-            logger_1.default.info(`Generated ${type} horoscope for ${zodiacSign}`);
-            return horoscope;
+            const response = yield axios_1.default.post(CLAUDE_API_URL, {
+                model: 'claude-v1',
+                prompt: `Generate a ${type} horoscope for ${zodiacSign}.`,
+                max_tokens_to_sample: 300,
+                temperature: 0.7,
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': CLAUDE_API_KEY,
+                },
+            });
+            return response.data.completion;
         }
         catch (error) {
-            logger_1.default.error(`Failed to generate ${type} horoscope for ${zodiacSign}:`, error);
-            throw error;
+            console.error('Error generating horoscope:', error);
+            throw new Error('Failed to generate horoscope');
         }
     });
 }

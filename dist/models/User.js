@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const UserSchema = new mongoose_1.Schema({
     email: {
         type: String,
@@ -49,82 +49,23 @@ const UserSchema = new mongoose_1.Schema({
         type: String,
         required: true
     },
-    birthdate: {
-        type: Date,
-        required: true
-    },
-    birthTime: {
-        type: String,
-        required: true
-    },
     tenantId: {
         type: String,
         required: true
     },
-    isVerified: {
-        type: Boolean,
-        default: false
-    },
-    verificationToken: {
-        type: String,
-        default: null
-    },
-    resetPasswordToken: {
-        type: String,
-        default: null
-    },
-    resetPasswordExpires: {
-        type: Date,
-        default: null
-    },
-    appleSubscriptionId: {
-        type: String
-    },
-    googleSubscriptionId: {
-        type: String
-    },
-    zodiacSign: {
-        type: String,
-        required: true
-    },
-    subscriptionLevel: {
-        type: String,
-        enum: ['free', 'pro', 'premium'],
-        default: 'free'
-    },
-    subscriptionEndDate: {
-        type: Date,
-        default: null
-    }
-}, {
-    timestamps: true // This will add createdAt and updatedAt fields
+    // ... other fields ...
 });
-// Index for faster queries
-UserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
-// Pre-save hook to hash password
 UserSchema.pre('save', function (next) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (!this.isModified('password'))
-            return next();
-        try {
-            const salt = yield bcrypt_1.default.genSalt(10);
-            this.password = yield bcrypt_1.default.hash(this.password, salt);
-            next();
+        if (this.isModified('password')) {
+            this.password = yield bcryptjs_1.default.hash(this.password, 10);
         }
-        catch (error) {
-            next(error);
-        }
+        next();
     });
 });
-// Method to compare password for login
 UserSchema.methods.comparePassword = function (candidatePassword) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            return yield bcrypt_1.default.compare(candidatePassword, this.password);
-        }
-        catch (error) {
-            throw error;
-        }
+        return bcryptjs_1.default.compare(candidatePassword, this.password);
     });
 };
 exports.default = mongoose_1.default.model('User', UserSchema);

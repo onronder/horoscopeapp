@@ -12,13 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.login = exports.resetPassword = exports.forgotPassword = exports.verifyEmail = exports.register = void 0;
+exports.refreshToken = exports.login = exports.resetPassword = exports.forgotPassword = exports.verifyEmail = exports.register = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = __importDefault(require("../models/User"));
 const emailService_1 = require("../services/emailService");
 const logger_1 = __importDefault(require("../utils/logger"));
 const uuid_1 = require("uuid");
+const auth_1 = require("../middleware/auth");
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -57,9 +57,7 @@ const verifyEmail = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         if (!user) {
             return res.status(400).json({ message: 'Invalid verification token' });
         }
-        user.isVerified = true;
-        user.verificationToken = null;
-        yield user.save();
+        yield User_1.default.updateOne({ _id: user._id }, { $set: { isVerified: true }, $unset: { verificationToken: 1 } });
         logger_1.default.info(`Email verified for user: ${user.email}`);
         res.json({ message: 'Email verified successfully' });
     }
@@ -78,9 +76,12 @@ const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
             return res.status(404).json({ message: 'User not found' });
         }
         const resetToken = Math.random().toString(36).substring(2, 15);
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
-        yield user.save();
+        yield User_1.default.updateOne({ _id: user._id }, {
+            $set: {
+                resetPasswordToken: resetToken,
+                resetPasswordExpires: new Date(Date.now() + 3600000) // 1 hour
+            }
+        });
         yield (0, emailService_1.sendPasswordResetEmail)(email, resetToken);
         logger_1.default.info(`Password reset requested for user: ${email}, tenant: ${tenantId}`);
         res.json({ message: 'Password reset email sent' });
@@ -102,9 +103,13 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             return res.status(400).json({ message: 'Invalid or expired reset token' });
         }
         user.password = yield bcrypt_1.default.hash(newPassword, 10);
-        user.resetPasswordToken = null;
-        user.resetPasswordExpires = null;
-        yield user.save();
+        yield User_1.default.updateOne({ _id: user._id }, {
+            $set: {
+                password: user.password,
+                resetPasswordToken: null,
+                resetPasswordExpires: null
+            }
+        });
         logger_1.default.info(`Password reset successfully for user: ${user.email}`);
         res.json({ message: 'Password reset successfully' });
     }
@@ -116,37 +121,33 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
 exports.resetPassword = resetPassword;
 const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        console.log('Login request body:', req.body);
-        console.log('Tenant ID:', req.header('X-Tenant-ID'));
         const { email, password } = req.body;
-        const tenantId = req.header('X-Tenant-ID') || 'default';
-        if (!email || !password) {
-            console.log('Email or password is missing');
-            return res.status(400).json({ message: 'Email and password are required' });
+        const user = yield User_1.default.findOne({ email });
+        if (!user || !(yield user.comparePassword(password))) {
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const user = yield User_1.default.findOne({ email, tenantId });
-        if (!user) {
-            console.log('User not found');
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-        console.log('User found:', user);
-        if (!user.isVerified) {
-            console.log('User is not verified');
-            return res.status(400).json({ message: 'Please verify your email before logging in' });
-        }
-        const isMatch = yield bcrypt_1.default.compare(password, user.password);
-        if (!isMatch) {
-            console.log('Password does not match');
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-        const token = jsonwebtoken_1.default.sign({ userId: user._id, tenantId }, JWT_SECRET, { expiresIn: '1h' });
-        console.log('Login successful');
-        res.json({ token, userId: user._id });
+        const { accessToken, refreshToken } = (0, auth_1.generateTokens)(user);
+        res.json({ accessToken, refreshToken, user: { id: user._id, email: user.email, tenantId: user.tenantId } });
     }
     catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: 'Error logging in' });
+        logger_1.default.error('Login error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 exports.login = login;
+const refreshToken = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: 'Refresh token is required' });
+        }
+        const newAccessToken = (0, auth_1.refreshAccessToken)(refreshToken);
+        res.json({ accessToken: newAccessToken });
+    }
+    catch (error) {
+        logger_1.default.error('Refresh token error:', error);
+        res.status(401).json({ message: 'Invalid refresh token' });
+    }
+});
+exports.refreshToken = refreshToken;
 // ... other controller functions (login, etc.) remain the same

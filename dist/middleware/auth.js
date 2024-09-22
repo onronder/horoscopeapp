@@ -12,11 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.auth = void 0;
+exports.refreshAccessToken = exports.generateTokens = exports.auth = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = __importDefault(require("../models/User"));
 const logger_1 = __importDefault(require("../utils/logger"));
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret';
 const auth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -29,17 +30,9 @@ const auth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () 
         if (!user) {
             throw new Error('User not found');
         }
-        if (typeof user._id === 'undefined') {
-            throw new Error('User ID is undefined');
-        }
-        if (user._id) {
-            req.userId = user._id.toString();
-            req.tenantId = user.tenantId;
-            next();
-        }
-        else {
-            throw new Error('User ID is null');
-        }
+        req.userId = decoded.userId;
+        req.tenantId = decoded.tenantId;
+        next();
     }
     catch (error) {
         logger_1.default.error('Authentication error:', error);
@@ -47,5 +40,23 @@ const auth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.auth = auth;
+const generateTokens = (user) => {
+    var _a, _b;
+    const accessToken = jsonwebtoken_1.default.sign({ userId: (_a = user._id) === null || _a === void 0 ? void 0 : _a.toString(), tenantId: user.tenantId }, JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jsonwebtoken_1.default.sign({ userId: (_b = user._id) === null || _b === void 0 ? void 0 : _b.toString(), tenantId: user.tenantId }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    return { accessToken, refreshToken };
+};
+exports.generateTokens = generateTokens;
+const refreshAccessToken = (refreshToken) => {
+    try {
+        const decoded = jsonwebtoken_1.default.verify(refreshToken, JWT_REFRESH_SECRET);
+        const accessToken = jsonwebtoken_1.default.sign({ userId: decoded.userId, tenantId: decoded.tenantId }, JWT_SECRET, { expiresIn: '15m' });
+        return accessToken;
+    }
+    catch (error) {
+        throw new Error('Invalid refresh token');
+    }
+};
+exports.refreshAccessToken = refreshAccessToken;
 // Remove the register, login, verifyEmail, forgotPassword, and resetPassword functions from this file
 // as they are now in the authController.ts file

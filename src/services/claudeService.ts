@@ -5,7 +5,7 @@ import { trackApiUsage } from '../utils/usageTracker';
 
 dotenv.config();
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/completions';
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 const MAX_RETRIES = 3;
 
@@ -58,17 +58,27 @@ async function callClaudeWithRetry(prompt: string, retries = 0): Promise<string>
 }
 
 export async function generateHoroscope(zodiacSign: string, type: 'daily' | 'weekly' | 'monthly'): Promise<string> {
-  const prompt = `Generate a ${type} horoscope for ${zodiacSign}. 
-  The horoscope should be positive, inspirational, and around ${type === 'daily' ? '100' : type === 'weekly' ? '200' : '300'} words long. 
-  Include advice for love, career, and personal growth.`;
-
   try {
-    const horoscope = await callClaudeWithRetry(prompt);
-    logger.info(`Generated ${type} horoscope for ${zodiacSign}`);
-    return horoscope;
+    const response = await axios.post(
+      CLAUDE_API_URL,
+      {
+        model: 'claude-v1',
+        prompt: `Generate a ${type} horoscope for ${zodiacSign}.`,
+        max_tokens_to_sample: 300,
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': CLAUDE_API_KEY,
+        },
+      }
+    );
+
+    return response.data.completion;
   } catch (error) {
-    logger.error(`Failed to generate ${type} horoscope for ${zodiacSign}:`, error);
-    throw error;
+    console.error('Error generating horoscope:', error);
+    throw new Error('Failed to generate horoscope');
   }
 }
 
